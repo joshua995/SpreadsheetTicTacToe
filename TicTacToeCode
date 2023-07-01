@@ -1,0 +1,390 @@
+/*
+Joshua Liu
+June 18, 2023
+Tic-Tac-Toe with hard-coded ai
+*/
+
+var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet()
+var board = [[2,2], [2,3], [2,4], 
+            [3,2], [3,3], [3,4],
+            [4,2], [4,3], [4,4]]
+var boardState = ["", "", "","", "", "","", "", ""]
+var previousBoard = [[2,7], [2,8], [2,9], 
+                      [3,7], [3,8], [3,9],
+                      [4,7], [4,8], [4,9]]
+
+var previousBoardState = ["", "", "", "", "", "", "", "", ""]
+
+/*
+This function is called when the spreadsheet is opened
+params()
+If the board is in use, then the board will reset.
+returns()
+*/
+function startGame() {
+  updateBoardState()
+  if(getLegalMoves(boardState).length != 7){
+    initializeBoard(sheet)
+  }
+}
+
+/*
+This function is called when a board needs to be reset
+params(the spreadsheet to reset)
+The selected board of the sheet will reset
+returns()
+*/
+function initializeBoard(sheet){
+  for(let i = 0; i < 9;i++){
+    sheet.getRange(board[i][0], board[i][1]).setValue(" ")
+    sheet.getRange(previousBoard[i][0], previousBoard[i][1]).setValue(" ")
+  }
+  sheet.getRange(1,2).setValue("Use the same character when playing, and wait until the computer makes a move.")
+}
+
+/*
+//This function is called when a new state has to be stored
+params()
+The state of the current board will be stored in the array boardState
+returns()
+*/
+function updateBoardState(){
+  for(let i = 0; i < 9;i++){
+    boardState[i] = sheet.getRange(board[i][0], board[i][1]).getValue()
+  }
+}
+
+/*
+//This function is called when an edit is made in the spreadsheet
+params()
+This is the main game loop and takes care of all the 3 difficulties
+returns()
+*/
+function gameLoop() {
+  if(sheet.getName() != "Reset"){// If the current spreadsheet is not the reset one
+    sheet.getRange(3,6).setValue("")
+    var isGameOver = false
+    if(!isLegalMove()){
+      return
+    }
+    if(checkWinner("x")){
+      sheet.getRange(3,6).setValue("You Won!!")
+      isGameOver = true
+    }
+    if(!isGameOver){
+      //Will choose which ai to run depending on what sheet is active
+      if(sheet.getName() == "Impossible"){
+        isGameOver = impossibleAI()
+      }else if(sheet.getName() == "Hard"){
+        isGameOver = doNotForgetToBlockAI()
+      }else if(sheet.getName() == "Easy"){
+        isGameOver = toddlerAI()
+      }
+      var legalMoves = getLegalMoves(boardState)
+      var index = legalMoves[Math.floor((Math.random()*legalMoves.length))]
+      if(index == undefined){
+        sheet.getRange(3,6).setValue("It's a Draw")
+        isGameOver = true
+      }
+    }
+    updateBoardState()
+    if(checkWinner("o")){
+      sheet.getRange(3,6).setValue("You Lost!")
+      isGameOver = true
+    }
+    displayPreviousState();
+    if(isGameOver){
+      displayPreviousState();
+      initializeBoard(sheet)
+    }
+  }else{
+    reset()
+  }
+}
+
+/*
+This function is called in the gameLoop function
+params()
+Determines whether a move is legal or not
+returns(boolean)
+*/
+function isLegalMove(){
+  updateBoardState()
+  updatePreviousBoardState()
+  if(getLegalMoves(boardState).length + 1 != getLegalMoves(previousBoardState).length && getLegalMoves(boardState).length < 9){
+    sheet.getRange(3,6).setValue("Illegal Move")
+    restorePreviousState()
+    return false
+  }
+  return true
+}
+
+/*
+This function is called when the current active sheet is Easy
+params()
+The computer will choose a random legal move to make
+returns(boolean)
+*/
+function toddlerAI(){
+  var legalMoves = getLegalMoves(boardState)
+  var index = legalMoves[Math.floor((Math.random()*legalMoves.length))]
+  if(index == undefined){
+    sheet.getRange(3,6).setValue("It's a Draw")
+    return true
+  }else{
+    sheet.getRange(board[index][0], board[index][1]).setValue("o")
+    updateBoardState()
+    if(checkWinner("o")){
+      sheet.getRange(3,6).setValue("You Lost!")
+      return true
+    }
+  }
+  return false
+}
+
+/*
+This function is called when the current active sheet is Hard
+params()
+The computer will win when it has the opportunity, otherwise it will make a random legal move
+returns(boolean)
+*/
+function doNotForgetToBlockAI(){
+  if(((boardState[1] == "o" && boardState[2] == "o") || (boardState[3] == "o" && boardState[6] == "o") || 
+  (boardState[4] == "o" && boardState[8] == "o")) && (boardState[0] == " ")){
+    sheet.getRange(board[0][0], board[0][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[2] == "o") || (boardState[4] == "o" && boardState[7] == "o")) && (boardState[1] == " ")){	
+    sheet.getRange(board[1][0], board[1][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[1] == "o") || (boardState[5] == "o" && boardState[8] == "o") || 
+  (boardState[4] == "o" && boardState[6] == "o")) && (boardState[2] == " ")){
+    sheet.getRange(board[2][0], board[2][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[6] == "o") || (boardState[4] == "o" && boardState[5] == "o")) && (boardState[3] == " ")){
+    sheet.getRange(board[3][0], board[3][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[8] == "o") || (boardState[2] == "o" && boardState[6] == "o") || 
+  (boardState[1] == "o" && boardState[7] == "o") || (boardState[3] == "o" && boardState[5] == "o")) && (boardState[4] == " ")){
+    sheet.getRange(board[4][0], board[4][1]).setValue("o")
+  }else if(((boardState[2] == "o" && boardState[8] == "o") || (boardState[3] == "o" && boardState[4] == "o")) && (boardState[5] == " ")){
+    sheet.getRange(board[5][0], board[5][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[3] == "o") || (boardState[4] == "o" && boardState[2] == "o") || 
+  (boardState[7] == "o" && boardState[8] == "o")) && (boardState[6] == " ")){
+    sheet.getRange(board[6][0], board[6][1]).setValue("o")
+  }else if(((boardState[1] == "o" && boardState[4] == "o") || (boardState[6] == "o" && boardState[8] == "o")) && (boardState[7] == " ")){
+    sheet.getRange(board[7][0], board[7][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[4] == "o") || (boardState[2] == "o" && boardState[5] == "o") || 
+  (boardState[6] == "o" && boardState[7] == "o")) && (boardState[8] == " ")){
+    sheet.getRange(board[8][0], board[8][1]).setValue("o")
+  }else if(boardState[4] == " "){
+    sheet.getRange(board[4][0], board[4][1]).setValue("o")
+  }else if(boardState[0] == " "){
+    sheet.getRange(board[0][0], board[0][1]).setValue("o")
+  }else if(boardState[2] == " "){
+    sheet.getRange(board[2][0], board[2][1]).setValue("o")
+  }else if(boardState[6] == " "){
+    sheet.getRange(board[6][0], board[6][1]).setValue("o")
+  }else if(boardState[8] == " "){
+    sheet.getRange(board[8][0], board[8][1]).setValue("o")
+  }else{
+    var legalMoves = getLegalMoves(boardState)
+    var index = legalMoves[Math.floor((Math.random()*legalMoves.length))]
+    if(index == undefined){
+      sheet.getRange(3,6).setValue("It's a Draw")
+      return true
+    }else{
+      sheet.getRange(board[index][0], board[index][1]).setValue("o")
+      updateBoardState()
+      if(checkWinner("o")){
+        sheet.getRange(3,6).setValue("You Lost!")
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/*
+This function is called when the current active sheet is Impossible
+params()
+The computer will choose the correct move to not allow the player to win
+returns(boolean)
+*/
+function impossibleAI(){
+  if(((boardState[1] == "o" && boardState[2] == "o") || (boardState[3] == "o" && boardState[6] == "o") || 
+  (boardState[4] == "o" && boardState[8] == "o")) && (boardState[0] == " ")){
+    sheet.getRange(board[0][0], board[0][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[2] == "o") || (boardState[4] == "o" && boardState[7] == "o")) && (boardState[1] == " ")){	
+    sheet.getRange(board[1][0], board[1][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[1] == "o") || (boardState[5] == "o" && boardState[8] == "o") || 
+  (boardState[4] == "o" && boardState[6] == "o")) && (boardState[2] == " ")){
+    sheet.getRange(board[2][0], board[2][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[6] == "o") || (boardState[4] == "o" && boardState[5] == "o")) && (boardState[3] == " ")){
+    sheet.getRange(board[3][0], board[3][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[8] == "o") || (boardState[2] == "o" && boardState[6] == "o") || 
+  (boardState[1] == "o" && boardState[7] == "o") || (boardState[3] == "o" && boardState[5] == "o")) && (boardState[4] == " ")){
+    sheet.getRange(board[4][0], board[4][1]).setValue("o")
+  }else if(((boardState[2] == "o" && boardState[8] == "o") || (boardState[3] == "o" && boardState[4] == "o")) && (boardState[5] == " ")){
+    sheet.getRange(board[5][0], board[5][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[3] == "o") || (boardState[4] == "o" && boardState[2] == "o") || 
+  (boardState[7] == "o" && boardState[8] == "o")) && (boardState[6] == " ")){
+    sheet.getRange(board[6][0], board[6][1]).setValue("o")
+  }else if(((boardState[1] == "o" && boardState[4] == "o") || (boardState[6] == "o" && boardState[8] == "o")) && (boardState[7] == " ")){
+    sheet.getRange(board[7][0], board[7][1]).setValue("o")
+  }else if(((boardState[0] == "o" && boardState[4] == "o") || (boardState[2] == "o" && boardState[5] == "o") || 
+  (boardState[6] == "o" && boardState[7] == "o")) && (boardState[8] == " ")){
+    sheet.getRange(board[8][0], board[8][1]).setValue("o")
+  }else if(((boardState[1] == "x" && boardState[2] == "x") || (boardState[3] == "x" && boardState[6] == "x") || 
+  (boardState[4] == "x" && boardState[8]== "x")) && (boardState[0] == " ")){
+    sheet.getRange(board[0][0], board[0][1]).setValue("o")
+  }else if(((boardState[0] == "x" && boardState[2] == "x") || (boardState[4] == "x" && boardState[7] == "x")) && (boardState[1] == " ")){	
+    sheet.getRange(board[1][0], board[1][1]).setValue("o")
+  }else if(((boardState[0] == "x" && boardState[1] == "x") || (boardState[5] == "x" && boardState[8] == "x") || 
+  (boardState[4] == "x" && boardState[6] == "x")) && (boardState[2] == " ")){
+    sheet.getRange(board[2][0], board[2][1]).setValue("o")
+  }else if(((boardState[0] == "x" && boardState[6] == "x") || (boardState[4] == "x" && boardState[5] == "x")) && (boardState[3] == " ")){
+    sheet.getRange(board[3][0], board[3][1]).setValue("o")
+  }else if(((boardState[0] == "x" && boardState[8] == "x") || (boardState[2] == "x" && boardState[6] == "x") || 
+  (boardState[1] == "x" && boardState[7] == "x") || (boardState[3] == "x" && boardState[5] == "x")) && (boardState[4] == " ")){
+    sheet.getRange(board[4][0], board[4][1]).setValue("o")
+  }else if(((boardState[2] == "x" && boardState[8] == "x") || (boardState[3] == "x" && boardState[4] == "x") || 
+  (boardState[0] == "x" && boardState[8] == "x") || (boardState[2] == "x" && boardState[6] == "x")) && (boardState[5] == " ")){
+    sheet.getRange(board[5][0], board[5][1]).setValue("o")
+  }else if(((boardState[0] == "x" && boardState[3] == "x") || (boardState[4] == "x" && boardState[2] == "x") || 
+  (boardState[7] == "x" && boardState[8] == "x")) && (boardState[6] == " ")){
+    sheet.getRange(board[6][0], board[6][1]).setValue("o")
+  }else if(((boardState[1] == "x" && boardState[4] == "x") || (boardState[6] == "x" && boardState[8] == "x")) && (boardState[7] == " ")){
+    sheet.getRange(board[7][0], board[7][1]).setValue("o")/////
+  }else if(((boardState[0] == "x"&& boardState[4]== "x") || (boardState[2]== "x" && boardState[5]== "x") || 
+  (boardState[6]== "x" && boardState[7]== "x") || (boardState[5]== "x" && boardState[6]== "x") || (boardState[2]== "x" && boardState[7]== "x") || (boardState[0]== "x" && boardState[7]== "x") || (boardState[5]== "x" && boardState[7]== "x")) && (boardState[8] == " ")){
+    sheet.getRange(board[8][0], board[8][1]).setValue("o")
+  }else if(boardState[4] == " "){
+    sheet.getRange(board[4][0], board[4][1]).setValue("o")
+  }else if(boardState[0] == " "){
+    sheet.getRange(board[0][0], board[0][1]).setValue("o")
+  }else if(boardState[2] == " "){
+    sheet.getRange(board[2][0], board[2][1]).setValue("o")
+  }else if(boardState[6] == " "){
+    sheet.getRange(board[6][0], board[6][1]).setValue("o")
+  }else if(boardState[8] == " "){
+    sheet.getRange(board[8][0], board[8][1]).setValue("o")
+  }else{
+    var legalMoves = getLegalMoves(boardState)
+    var index = legalMoves[Math.floor((Math.random()*legalMoves.length))]
+    if(index == undefined){
+      sheet.getRange(3,6).setValue("It's a Draw")
+      return true
+    }else{
+      if(legalMoves.includes(1)){
+        sheet.getRange(board[1][0], board[1][1]).setValue("o")
+      }else if(legalMoves.includes(3)){
+        sheet.getRange(board[3][0], board[3][1]).setValue("o")
+      }else if(legalMoves.includes(5)){
+        sheet.getRange(board[5][0], board[5][1]).setValue("o")
+      }else if(legalMoves.includes(7)){
+        sheet.getRange(board[7][0], board[7][1]).setValue("o")
+      }
+      updateBoardState()
+      if(checkWinner("o")){
+        sheet.getRange(3,6).setValue("You Lost!")
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/*
+This function is called when determining whether a move is legal or not, and for the AIs
+params(the board to check moves)
+Will create a list of legal moves to choose from
+returns(list of legal move indexes)
+*/
+function getLegalMoves(state){
+  var legalMoves = []
+  for(let i = 0; i < 9;i++){
+    if(state[i] == " "){
+      legalMoves.push(i)
+    }
+  }
+  return legalMoves
+}
+
+/*
+This function is called when an illegal move is made
+params()
+Will copy the state of the previous board to the current board
+returns()
+*/
+function restorePreviousState(){//Used for illegal move correction
+  for(let i = 0; i < 9;i++){
+    sheet.getRange(board[i][0], board[i][1]).setValue(previousBoardState[i])
+  }
+}
+
+/*
+This function is called to check for a winner
+params()
+Will determine who wins or loses
+returns(boolean)
+*/
+function checkWinner(currentPlayer){
+  if(currentPlayer == "x"){
+    if((boardState[0] == boardState[1] && boardState[1] == boardState[2] && boardState[0] != " ") ||
+    (boardState[3] == boardState[4] && boardState[4] == boardState[5] && boardState[3] != " ") ||
+    (boardState[6] == boardState[7] && boardState[7] == boardState[8] && boardState[6] != " ") ||
+    (boardState[0] == boardState[3] && boardState[3] == boardState[6] && boardState[0] != " ") ||
+    (boardState[1] == boardState[4] && boardState[4] == boardState[7] && boardState[1] != " ") ||
+    (boardState[2] == boardState[5] && boardState[5] == boardState[8] && boardState[2] != " ")  ||
+    (boardState[0] == boardState[4] && boardState[4] == boardState[8] && boardState[0] != " ")   ||
+    (boardState[2] == boardState[4] && boardState[4] == boardState[6] && boardState[2] != " ")  ){
+    return true
+  }
+  }
+  if((boardState[0] == boardState[1] && boardState[1] == boardState[2] && boardState[0] == currentPlayer) ||
+    (boardState[3] == boardState[4] && boardState[4] == boardState[5] && boardState[3] == currentPlayer) ||
+    (boardState[6] == boardState[7] && boardState[7] == boardState[8] && boardState[6] == currentPlayer) ||
+    (boardState[0] == boardState[3] && boardState[3] == boardState[6] && boardState[0] == currentPlayer) ||
+    (boardState[1] == boardState[4] && boardState[4] == boardState[7] && boardState[1] == currentPlayer) ||
+    (boardState[2] == boardState[5] && boardState[5] == boardState[8] && boardState[2] == currentPlayer)  ||
+    (boardState[0] == boardState[4] && boardState[4] == boardState[8] && boardState[0] == currentPlayer)   ||
+    (boardState[2] == boardState[4] && boardState[4] == boardState[6] && boardState[2] == currentPlayer)  ){
+    return true
+  }
+  return false
+}
+
+/*
+This function is called to update the previous state on the spreadsheet
+params()
+From the previousBoard array, it will update the current board state onto the previous board state in the spreadsheet
+returns()
+*/
+function displayPreviousState() {//Prints out the array to the spreadsheet
+  for(let i = 0; i < 9;i++){
+    sheet.getRange(previousBoard[i][0], previousBoard[i][1]).setValue(boardState[i])
+  }
+}
+
+/*
+This function is called to update the previous state on the spreadsheet
+params()
+From the spreadsheet, it will update the previousBoardState array
+returns()
+*/
+function updatePreviousBoardState(){//Reads the previous state board from the spreadsheet and stores it in the array
+  for(let i = 0; i < 9;i++){
+    previousBoardState[i] = sheet.getRange(previousBoard[i][0], previousBoard[i][1]).getValue()
+  }
+}
+
+/*
+This function is called when the player deletes the text from the Reset spreadsheet
+params()
+It will clear all the states of each board
+returns()
+*/
+function reset() {//Deletes all board states
+  var allSheets = SpreadsheetApp.getActiveSpreadsheet().getSheets()
+  for(let i = 0; i < 3;i++){
+    initializeBoard(allSheets[i])
+    allSheets[i].getRange(3,6).setValue("")
+  }
+  allSheets[3].getRange(1,1).setValue("Reset all games by deleting this text")
+}
